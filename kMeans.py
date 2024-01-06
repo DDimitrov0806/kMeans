@@ -8,29 +8,43 @@ class KMeans:
         self.max_iterations = max_iterations  # maximum number of iterations
         self.random_restarts = random_restarts  # number of times to restart the algorithm
 
+    #initialize centroids using kMeans++ 
     def initialize_centroids(self, points):
-        """Randomly initialize centroids"""
-        random_indexes = np.random.choice(len(points), size=self.k, replace=False)
-        centroids = [points[index] for index in random_indexes]
+        centroids = []
+        centroid_index = np.random.randint(len(points))
+        centroids.append(points[centroid_index])
+
+        for _ in range(1,self.k):
+            distances = []
+            for point in points:
+                #get the closest centroid to point
+                temp = self.calculate_distance_between_point_and_centroids(point, centroids)
+                distance = np.min(temp)
+                distances.append(distance)
+            
+            #get the index of the point with max distance
+            next_centroid = np.argmax(distances)
+            centroids.append(points[next_centroid])
+
         return centroids
 
     def assign_points_to_clusters(self, centroids, points):
-        """Assign each point to the closest centroid"""
         clusters = [[] for _ in range(self.k)]
         for point in points:
+            #calculate the distance from a point to all the centroids
             distances = self.calculate_distance_between_point_and_centroids(point, centroids)
-            #distances = np.sqrt(np.sum((point - centroids[:, np.newaxis]) ** 2, axis=2))
+            #get the closest centroid
             closest_centroid = np.argmin(distances)
+            #add the point to the cluster
             clusters[closest_centroid].append(point)
         return clusters
 
     def calculate_new_centroids(self, clusters):
-        """Recalculate centroids"""
+        #recalculate the centroids to be the average of all the points in the cluster
         centroids = [np.mean(cluster, axis=0).tolist() for cluster in clusters if cluster]  # avoid empty clusters
         return centroids
 
     def fit(self, points):
-        """Run the K-Means algorithm with random restarts"""
         best_score = float('inf')
         best_clusters = None
         best_centroids = None
@@ -38,10 +52,12 @@ class KMeans:
         for _ in range(self.random_restarts):
             centroids = self.initialize_centroids(points)
             for _ in range(self.max_iterations):
+                #create clusters
                 clusters = self.assign_points_to_clusters(centroids, points)
+                #adjust centroids
                 new_centroids = self.calculate_new_centroids(clusters)
                 
-                # Check for convergence (if centroids don't change)
+                #if the centroids did not move, finish this step
                 if np.all(centroids == new_centroids):
                     break
                 
@@ -54,20 +70,19 @@ class KMeans:
                 best_clusters = clusters
                 best_centroids = centroids
 
-            plot_clusters(best_clusters,best_centroids)
-
         return best_clusters, best_centroids
 
     def evaluate(self, clusters, centroids):
-        """Evaluate the total distance from each point to its centroid"""
         total_distance = 0
         for i,cluster in enumerate(clusters):
             if cluster:  # avoid empty clusters
                 for point in cluster:
+                    #get the total distance from each point to its centroid
                     total_distance += np.sum(self.calculate_distance_between_point_and_centroids(point, [centroids[i]]))
         return total_distance
     
     def calculate_distance_between_point_and_centroids(self, point, centroids):
+        #calculate euclidean distance
         return [np.sqrt((point[0] - centroid[0])**2 +(point[1] - centroid[1])**2) for centroid in centroids]
     
 def plot_clusters(clusters, centers):
